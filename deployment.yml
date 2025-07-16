@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-eks-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-eks-demo
+  template:
+    metadata:
+      labels:
+        app: flask-eks-demo
+    spec:
+      containers:
+      - name: flask-eks-demo
+        image: aashmanarora/pyhton-app:latest
+        ports:
+        - containerPort: 5000
