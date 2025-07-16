@@ -1,0 +1,51 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      
+      # Retrieve ECR configuration from Secrets Manager
+      - ECR_CONFIG=$(aws secretsmanager get-secret-value --secret-id flask-eks-demo --query SecretString --output text)
+      - ACCOUNT_ID=$(echo $ECR_CONFIG | jq -r '.account_id')
+      - ECR_REGION=$(echo $ECR_CONFIG | jq -r '.region')
+      - REPOSITORY_NAME=$(echo $ECR_CONFIG | jq -r '.repository_name')
+      
+      # Set repository URI
+      - REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$REPOSITORY_NAME
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      
+      # Login to ECR
+      - $(aws ecr get-login-password --region $ECR_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com)
+      
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
+      
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - docker push $REPOSITORY_URI:latest
+      
+      # Retrieve EKS configuration from Secrets Manager
+      - EKS_CONFIG=$(aws secretsmanager get-secret-value --secret-id flask-eks-demo --query SecretString --output text)
+      - CLUSTER_NAME=$(echo $EKS_CONFIG | jq -r '.cluster_name')
+      - EKS_REGION=$(echo $EKS_CONFIG | jq -r '.region')
+      - DEPLOYMENT_NAME=$(echo $EKS_CONFIG | jq -r '.deployment_name')
+      - CONTAINER_NAME=$(echo $EKS_CONFIG | jq -r '.container_name')
+      
+      - echo Writing image definitions file...
+      - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      
+      - echo Updating Kubernetes deployment...
+      - aws eks update-kubeconfig --region $EKS_REGION --name $CLUSTER_NAME
+      - kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$REPOSITORY_URI:$IMAGE_TAG
+
+artifacts:
+  files: imagedefinitions.json
