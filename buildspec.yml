@@ -16,7 +16,7 @@ phases:
       - echo Build started on `date`
       - echo Building the Docker image...
       - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
-      - "docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest"  # <-- QUOTED LINE
+      - "docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest"
 
   post_build:
     commands:
@@ -31,4 +31,5 @@ phases:
       - kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$REPOSITORY_URI:$IMAGE_TAG
 
 artifacts:
-  files: imagedefinitions.json
+  files:
+    - imagedefinitions.json
