@@ -5,9 +5,7 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws --version
-      - |
-        aws ecr get-login-password --region ap-south-1 | \
-        docker login --username AWS --password-stdin $(echo $REPOSITORY_URI | cut -d'/' -f1)
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $(echo $REPOSITORY_URI | cut -d'/' -f1)
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - echo "Repository URI: $REPOSITORY_URI"
       - echo "Cluster Name: $CLUSTER_NAME"
